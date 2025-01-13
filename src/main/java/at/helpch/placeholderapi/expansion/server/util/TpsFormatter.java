@@ -5,7 +5,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.StringJoiner;
+import java.util.concurrent.Callable;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public class TpsFormatter {
 
@@ -58,72 +60,72 @@ public class TpsFormatter {
         return getColor(tps) + getPercent(tps);
     }
 
-    private @NotNull String getAllTps(@NotNull final Function<Double, String> formatter) {
+    private @NotNull String getAllTps(@NotNull final Function<Double, String> formatter, @NotNull final Supplier<double[]> tpsGetter) {
         final StringJoiner joiner = new StringJoiner(ChatColor.GRAY + ", ");
 
-        for (final double tps : ServerUtil.getTps()) {
+        for (final double tps : tpsGetter.get()) {
             joiner.add(formatter.apply(tps));
         }
 
         return joiner.toString();
     }
 
-    public @Nullable String getTps(@Nullable final String type) {
+    public @Nullable String getTps(@Nullable final String type, @NotNull final Supplier<double[]> tpsGetter) {
         if (type == null || type.isEmpty()) {
-            return getAllTps(this::getColoredTps);
+            return getAllTps(this::getColoredTps, tpsGetter);
         }
 
         switch (type) {
             case "1":
             case "one":
-                return round(ServerUtil.getTps()[0]);
+                return round(tpsGetter.get()[0]);
 
             case "5":
             case "five":
-                return round(ServerUtil.getTps()[1]);
+                return round(tpsGetter.get()[1]);
 
             case "15":
             case "fifteen":
-                return round(ServerUtil.getTps()[2]);
+                return round(tpsGetter.get()[2]);
 
             case "1_colored":
             case "one_colored":
-                return getColoredTps(ServerUtil.getTps()[0]);
+                return getColoredTps(tpsGetter.get()[0]);
 
             case "5_colored":
             case "five_colored":
-                return getColoredTps(ServerUtil.getTps()[1]);
+                return getColoredTps(tpsGetter.get()[1]);
 
             case "15_colored":
             case "fifteen_colored":
-                return getColoredTps(ServerUtil.getTps()[2]);
+                return getColoredTps(tpsGetter.get()[2]);
 
             case "percent":
-                return getAllTps(this::getColoredTpsPercent);
+                return getAllTps(this::getColoredTpsPercent, tpsGetter);
 
             case "1_percent":
             case "one_percent":
-                return getPercent(ServerUtil.getTps()[0]);
+                return getPercent(tpsGetter.get()[0]);
 
             case "5_percent":
             case "five_percent":
-                return getPercent(ServerUtil.getTps()[1]);
+                return getPercent(tpsGetter.get()[1]);
 
             case "15_percent":
             case "fifteen_percent":
-                return getPercent(ServerUtil.getTps()[2]);
+                return getPercent(tpsGetter.get()[2]);
 
             case "1_percent_colored":
             case "one_percent_colored":
-                return getColoredTpsPercent(ServerUtil.getTps()[0]);
+                return getColoredTpsPercent(tpsGetter.get()[0]);
 
             case "5_percent_colored":
             case "five_percent_colored":
-                return getColoredTpsPercent(ServerUtil.getTps()[1]);
+                return getColoredTpsPercent(tpsGetter.get()[1]);
 
             case "15_percent_colored":
             case "fifteen_percent_colored":
-                return getColoredTpsPercent(ServerUtil.getTps()[2]);
+                return getColoredTpsPercent(tpsGetter.get()[2]);
         }
 
         return null;

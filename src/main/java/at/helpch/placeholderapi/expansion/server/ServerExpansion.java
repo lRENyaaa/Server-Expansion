@@ -1,12 +1,14 @@
 package at.helpch.placeholderapi.expansion.server;
 
 import at.helpch.placeholderapi.expansion.server.util.Logging;
+import at.helpch.placeholderapi.expansion.server.util.RegionFormatter;
 import at.helpch.placeholderapi.expansion.server.util.ServerUtil;
 import at.helpch.placeholderapi.expansion.server.util.TimeFormatter;
 import at.helpch.placeholderapi.expansion.server.util.TpsFormatter;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
+import ltd.rymc.folialib.FoliaLib;
 import me.clip.placeholderapi.PlaceholderAPIPlugin;
 import me.clip.placeholderapi.expansion.Cacheable;
 import me.clip.placeholderapi.expansion.Configurable;
@@ -50,6 +52,7 @@ public final class ServerExpansion extends PlaceholderExpansion implements Cache
 
     private TpsFormatter tpsFormatter;
     private TimeFormatter timeFormatter;
+    private RegionFormatter regionFormatter;
 
     @Override
     public @NotNull String getIdentifier() {
@@ -79,6 +82,7 @@ public final class ServerExpansion extends PlaceholderExpansion implements Cache
             ZoneId.of(this.getString("time.zone", ZoneId.systemDefault().getId())),
             Optional.ofNullable(getConfigSection("time.suffix")).map(section -> section.getValues(false)).orElseGet(HashMap::new)
         );
+        this.regionFormatter = new RegionFormatter();
         return true;
     }
 
@@ -201,7 +205,7 @@ public final class ServerExpansion extends PlaceholderExpansion implements Cache
             // -----
 
             case "tps":
-                return tpsFormatter.getTps(null);
+                return tpsFormatter.getTps(null, ServerUtil::getTps);
             case "uptime":
                 return timeFormatter.formatTimeInSeconds(TimeUnit.MILLISECONDS.toSeconds(ManagementFactory.getRuntimeMXBean().getUptime()));
             case "total_chunks":
@@ -216,7 +220,7 @@ public final class ServerExpansion extends PlaceholderExpansion implements Cache
 
         // tps_<type>
         if (params.startsWith("tps_")) {
-            return tpsFormatter.getTps(params.substring("tps_".length()));
+            return tpsFormatter.getTps(params.substring("tps_".length()), ServerUtil::getTps);
         }
 
         // online_<world name>
@@ -247,6 +251,26 @@ public final class ServerExpansion extends PlaceholderExpansion implements Cache
         // countup_<date> or countup_<custom format>_<date>
         if (params.startsWith("countup_")) {
             return timeFormatter.calculateTimeBetween(player, params.substring("countup_".length()), false, true);
+        }
+
+        // region_{location}_<params> or region_player_<params>
+        RegionFormatter.RegionizedParams regionizedParams = regionFormatter.formatRegion(params, player);
+        if (regionizedParams != null) {
+            return onRegionizedRequest(regionizedParams.getWorld(), regionizedParams.getX(), regionizedParams.getZ(), regionizedParams.getParams());
+        }
+
+        return null;
+    }
+
+    private @Nullable String onRegionizedRequest(@NotNull World world, int x, int z, @NotNull String params) {
+        // tps
+        if (params.equals("tps")) {
+            return tpsFormatter.getTps(null, () -> ServerUtil.getRegionTps(world, x, z));
+        }
+
+        // tps_<type>
+        if (params.startsWith("tps_")) {
+            return tpsFormatter.getTps(params.substring("tps_".length()), () -> ServerUtil.getRegionTps(world, x, z));
         }
 
         return null;

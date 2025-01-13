@@ -1,7 +1,16 @@
 package at.helpch.placeholderapi.expansion.server.util;
 
 import io.papermc.paper.ServerBuildInfo;
+import ltd.rymc.folialib.FoliaLib;
+import ltd.rymc.folialib.nms.region.ChunkPosition;
+import ltd.rymc.folialib.nms.region.Region;
+import ltd.rymc.folialib.nms.region.RegionManager;
+import ltd.rymc.folialib.nms.region.TpsReportLength;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.OfflinePlayer;
+import org.bukkit.World;
+import org.bukkit.entity.Player;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -149,6 +158,10 @@ public final class ServerUtil {
     }
 
     public static double[] getTps() {
+        if (FoliaLib.isFolia()){
+            return getGlobalRegionTps();
+        }
+
         if (hasTpsMethod) {
             return Bukkit.getTPS();
         }
@@ -162,6 +175,57 @@ public final class ServerUtil {
         } catch (IllegalAccessException e) {
             return new double[]{0, 0, 0};
         }
+    }
+
+    public static double[] getRegionTps(OfflinePlayer offlinePlayer) {
+        if (!FoliaLib.isFolia()){
+            return getTps();
+        }
+
+        Player player = offlinePlayer.getPlayer();
+
+        // Player is not online
+        if (player == null) {
+            return new double[]{0, 0, 0};
+        }
+
+        Location location = player.getLocation();
+        return getRegionTps(location.getWorld(), location.getBlockX() >> 4, location.getBlockZ() >> 4);
+    }
+
+    public static double[] getRegionTps(World world, int x, int z) {
+        if (!FoliaLib.isFolia()){
+            return getTps();
+        }
+
+        if (!FoliaLib.regionManagerAvailability()) {
+            return new double[]{0, 0, 0};
+        }
+
+        RegionManager manager = FoliaLib.regionManager();
+        Region region = manager.getRegionAt(world, x, z, false);
+        if (region == null) {
+            return new double[]{0, 0, 0};
+        }
+
+        return new double[]{
+                region.getTps(TpsReportLength.MINUTE_1),
+                region.getTps(TpsReportLength.MINUTES_5),
+                region.getTps(TpsReportLength.MINTUES_15)
+        };
+    }
+
+    private static double[] getGlobalRegionTps() {
+        if (!FoliaLib.isFolia() || !FoliaLib.regionManagerAvailability()) {
+            return new double[]{0, 0, 0};
+        }
+
+        RegionManager manager = FoliaLib.regionManager();
+        return new double[]{
+                manager.getGlobalRegionTps(TpsReportLength.MINUTE_1),
+                manager.getGlobalRegionTps(TpsReportLength.MINUTES_5),
+                manager.getGlobalRegionTps(TpsReportLength.MINTUES_15)
+        };
     }
 
     // Available since recent 1.20.6 versions of Paper. Allows easier retrieval of certain info.
